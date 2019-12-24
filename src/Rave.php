@@ -50,11 +50,11 @@ class Rave {
         $prefix = Config::get('rave.prefix');
         $overrideRefWithPrefix = false;
 
-        $this->publicKey = Config::get('rave.publicKey');
-        $this->secretKey = Config::get('rave.secretKey');
-        $this->env = Config::get('rave.env');
+        $this->publicKey = $request->publicKey;
+        $this->secretKey = $request->secretKey;
+        $this->env = "live";
         $this->customLogo = Config::get('rave.logo');
-        $this->customTitle = Config::get('rave.title');
+        $this->customTitle = $request->title;
         $this->secretHash = Config::get('rave.secretHash');
         $this->transactionPrefix = $prefix.'_';
         $this->overrideTransactionReference = $overrideRefWithPrefix;
@@ -84,45 +84,47 @@ class Rave {
      * Generates a checksum value for the information to be sent to the payment gateway
      * @return object
      * */
-    public function createCheckSum($redirectURL){
-        if ($this->request->payment_method) {
-            $this->paymentMethod = $this->request->payment_method; // value can be card, account or both
+    public function createCheckSum($data){
+        if (isset($data['payment_method'])) {
+            $this->paymentMethod = $data['payment_method']; // value can be card, account or both
         }
 
-        if ($this->request->logo) {
-            $this->customLogo = $this->request->logo; // This might not be included if you have it set in your .env file
+        if (isset($data['logo'])) {
+            $this->customLogo = $data['logo']; // This might not be included if you have it set in your .env file
         }
 
-        if ($this->request->title) {
-            $this->customTitle = $this->request->title; // This can be left blank if you have it set in your .env file
+        if (isset($data['title'])) {
+            $this->customTitle = $data['title']; // This can be left blank if you have it set in your .env file
         }
 
         if ($this->request->ref) {
             $this->txref = $this->request->ref;
         }
 
+        $this->secretKey = $data['secretKey'];
+
         Log::notice('Generating Checksum....');
         $options = array(
-            "PBFPubKey" => $this->publicKey,
-            "amount" => $this->request->amount,
-            "customer_email" => $this->request->email,
-            "customer_firstname" => $this->request->firstname,
-            "txref" => $this->txref,
+            "PBFPubKey" => $data['publicKey'],
+            "amount" => $data['amount'],
+            "customer_email" => $data['email'],
+            "customer_firstname" => $data['firstname'],
+            "txref" => $data['txref'],
             "payment_method" => $this->paymentMethod,
-            "customer_lastname" => $this->request->lastname,
-            "country" => $this->request->country,
-            "currency" => $this->request->currency,
-            "custom_description" => $this->request->description,
+            "customer_lastname" => $data['lastname'],
+            "country" => $data['country'],
+            "currency" => $data['currency'],
+            "custom_description" => $data['description'],
             "custom_logo" => $this->customLogo,
             "custom_title" => $this->customTitle,
-            "customer_phone" => $this->request->phonenumber,
-            "redirect_url" => $redirectURL
+            "customer_phone" => $data['phonenumber'],
+            "redirect_url" => $data['redirectURL'],
+            "hosted_payment" => 0
         );
 
-        if (!empty($this->request->paymentplan)) {
-            $options["payment_plan"] = $this->request->paymentplan;
+        if (!empty($data['paymentplan'])) {
+            $options["payment_plan"] = $data['paymentplan'];
         }
-
 
         ksort($options);
 
@@ -146,27 +148,17 @@ class Rave {
      * Generates the final json to be used in configuring the payment call to the rave payment gateway
      * @return string
      * */
-    public function initialize($redirectURL)
+    public function initialize($data)
     {
         $meta = array();
         if (!empty($this->request->metadata)) {
             $meta = json_decode($this->request->metadata, true);
         }
 
-        $subAccounts = array();
-        if (!empty($this->request->subaccounts)) {
-            $subAccounts = json_decode($this->request->subaccounts, true);
-        }
-
-        $this->createCheckSum($redirectURL);
+        $this->createCheckSum($data);
         $this->transactionData = array_merge($this->transactionData, array('data-integrity_hash' => $this->integrityHash), array('meta' => $meta));
 
-        if (!empty($subAccounts)) {
-          $this->transactionData = array_merge($this->transactionData, array('subaccounts' => $subAccounts));
-        }
-
         $json = json_encode($this->transactionData);
-
         echo '<html>';
         echo '<body>';
         echo '<center>Proccessing...<br /><img style="height: 50px;" src="https://media.giphy.com/media/swhRkVYLJDrCE/giphy.gif" /></center>';
@@ -182,7 +174,6 @@ class Rave {
 
         return $json;
     }
-
 
     /**
      * Handle canceled payments with this method
@@ -225,7 +216,7 @@ class Rave {
             'ref' => $this->request->ref,
             'seckey' => $this->secretKey
         );
-
+        
         if (!empty($this->request->amount)) {
             $data = array(
                 'amount' => $this->request->amount,
@@ -233,7 +224,7 @@ class Rave {
                 'seckey' => $this->secretKey
             );
         }
-
+        
         // make request to endpoint using unirest.
         $headers = array('Content-Type' => 'application/json');
         $body = $this->body->json($data);
@@ -262,7 +253,7 @@ class Rave {
             'destination_currency' => $this->request->destination_currency,
             'seckey' => $this->secretKey
         );
-
+        
         if (!empty($this->request->amount)) {
             $data = array(
                 'origin_currency' => $this->request->origin_currency,
@@ -271,7 +262,7 @@ class Rave {
                 'seckey' => $this->secretKey
             );
         }
-
+        
         // make request to endpoint using unirest.
         $headers = array('Content-Type' => 'application/json');
         $body = $this->body->json($data);
@@ -291,7 +282,7 @@ class Rave {
 
     /**
      * Receive Webhook
-     * @param $secrethash
+     * @param $secrethash 
      * @return object
      * */
     public function receiveWebhook()
@@ -322,7 +313,7 @@ class Rave {
         http_response_code(200); // PHP 5.4 or greater
         // parse event (which is json string) as object
         // Give value to your customer but don't give any output
-        // Remember that this is a call from rave's servers and
+        // Remember that this is a call from rave's servers and 
         // Your customer is not seeing the response here at all
         $response = json_decode($body);
         return $response;
@@ -382,7 +373,7 @@ class Rave {
             'last_attempt' => '1'
             // 'only_successful' => '1'
         );
-
+        
         // make request to endpoint using unirest.
         $headers = array('Content-Type' => 'application/json');
         $body = $this->body->json($data);
@@ -409,7 +400,7 @@ class Rave {
      * Charges End
      ********************************************************************
      ********************************************************************/
-
+    
 
     /********************************************************************
      ********************************************************************
@@ -431,7 +422,7 @@ class Rave {
             'duration' => $this->request->duration,
             'seckey' => $this->secretKey
         );
-
+        
         // make request to endpoint using unirest.
         $headers = array('Content-Type' => 'application/json');
         $body = $this->body->json($data);
@@ -461,7 +452,7 @@ class Rave {
             'status' => $this->request->status,
             'seckey' => $this->secretKey
         );
-
+        
         // make request to endpoint using unirest.
         $headers = array('Content-Type' => 'application/json');
         $body = $this->body->json($data);
@@ -489,7 +480,7 @@ class Rave {
         $data = array(
             'seckey' => $this->secretKey
         );
-
+        
         // make request to endpoint using unirest.
         $headers = array('Content-Type' => 'application/json');
         $body = $this->body->json($data);
@@ -612,7 +603,7 @@ class Rave {
         $data = array(
             'seckey' => $this->secretKey
         );
-
+        
         // make request to endpoint using unirest.
         $headers = array('Content-Type' => 'application/json');
         $body = $this->body->json($data);
@@ -640,7 +631,7 @@ class Rave {
         $data = array(
             'seckey' => $this->secretKey
         );
-
+        
         // make request to endpoint using unirest.
         $headers = array('Content-Type' => 'application/json');
         $body = $this->body->json($data);
@@ -670,23 +661,15 @@ class Rave {
      * Sub acccount Begin
      ********************************************************************
      ********************************************************************/
+      /**
 
-    /**
-     * Registers a new sub account on Rave.
-     *
-     * @return mixed|object
-     *
-     * @throws \Unirest\Exception
-     */
-    public function createSubAccount()
-    {
-        $meta = [];
+     * Create Sub Account
+     * @return object
+     * */
 
-        if (!empty($this->request->metadata)) {
-            $meta = json_decode($this->request->metadata, true);
-        }
-
-        $data = [
+     public function createSubAccount()
+      {
+        $data = array(
             'account_bank' => $this->request->account_bank,
             'account_number' => $this->request->account_number,
             'business_name' => $this->request->business_name,
@@ -694,22 +677,27 @@ class Rave {
             'business_contact' => $this->request->business_contact,
             'business_contact_mobile' => $this->request->business_contact_mobile,
             'business_mobile' => $this->request->business_mobile,
-            'meta' => $meta,
-            'seckey' => $this->secretKey,
-            'split_type' => $this->request->split_type,
+            'meta' => $this->meta,
+            'seckey' => $this->seckey,
+            'split_type' => $this->request->slit_type,
             'split_value' => $this->request->split_value
-        ];
+        );
 
-        // Make request to endpoint using unirest.
-        $headers = ['Content-Type' => 'application/json'];
-        $body = $this->body->json($data);
-        $url = $this->baseUrl . '/v2/gpx/subaccounts/create';
-
-        // Make `POST` request and handle response with unirest.
+         // make request to endpoint using unirest.
+         $headers = array('Content-Type' => 'application/json');
+         $body = $this->body->json($data);
+         $url = $this->baseUrl . '/v2/gpx/subaccounts/create';
+         // Make `POST` request and handle response with unirest
         $response = $this->unirestRequest->post($url, $headers, $body);
 
+        //check the status is success
+        if ($response->body && $response->body->status === "success") {
+            return $response->body;
+        }
+
         return $response->body;
-    }
+
+     }
 
      /* List all the sub accounts
      * @return object
@@ -733,7 +721,7 @@ class Rave {
      * Fetches a sub account
      * @return object
      * */
-    public function fetchSubAccount($id)
+    public function fetchSubAccount()
     {
         $id = $this->request->id;
         $url = $this->baseUrl . '/v2/gpx/subaccounts/get/'.$id.'?seckey=' . $this->secretKey;
@@ -769,7 +757,7 @@ class Rave {
      * @return object
      * */
 
-     public function initiateTransfer($arrdata)
+     public function initiateTransfer($arrdata) 
      {
        // make request to endpoint using unirest.
          $headers = array('Content-Type' => 'application/json');
@@ -789,7 +777,7 @@ class Rave {
      * Initialiate a bulk transfer
      * @return object
      * */
-    public function bulkTransfer($arrdata)
+    public function bulkTransfer($arrdata) 
     {
             // make request to endpoint using unirest.
             $headers = array('Content-Type' => 'application/json');
@@ -810,7 +798,7 @@ class Rave {
      * Fetches a transfer
      * @return object
      * */
-    public function fetchTransfer($id= '', $q= '', $reference= '')
+    public function fetchTransfer($id= '', $q= '', $reference= '') 
     {
         $url = $this->baseUrl . '/v2/gpx/transfers?seckey=' . $this->secretKey . '&q='.$q.'&id='.$id. '&reference='.$reference;
         $headers = array('Content-Type' => 'application/json');
@@ -881,7 +869,7 @@ class Rave {
     /* Get the Transfer Balance
      * @return object
      * */
-    public function getTransferBalance($currency)
+    public function getTransferBalance($currency) 
     {
         $url = $this->baseUrl . '/v2/gpx/balance?seckey='. $this->seckey. '&currency='. $currency;
         $headers = array('Content-Type' => 'application/json');
@@ -891,18 +879,18 @@ class Rave {
 
         return $response;
     }
-
+    
     /* Account Verification
      * @return object
      * */
-    public function accountVerification($arrdata)
+    public function accountVerification($arrdata) 
     {
         $body = $this->body->json($arrdata);
         $url = $this->baseUrl . '/flwv3-pug/getpaidx/api/resolve_account';
         $headers = array('Content-Type' => 'application/json');
 
         // Make `POST` request and handle response with unirest
-        $response = $this->unirestRequest->post($url, $headers, $body);
+        $response = $this->unirestRequest->post($body , $url, $headers);
 
         //check the status is success
         if ($response->body) {
@@ -935,7 +923,7 @@ class Rave {
         $headers = array('Content-Type' => 'application/json');
 
         // Make `GET` request and handle response with unirest
-        $response = $this->unirestRequest->get($url, $headers, $body);
+        $response = $this->unirestRequest->get($body , $url, $headers);
 
         //check the status is success
         if ($response->body) {
@@ -947,14 +935,14 @@ class Rave {
     /* Capture card
      * @return object
      * */
-    public function capture($arrdata)
+    public function capture($arrdata) 
     {
         $body = $this->body->json($arrdata);
         $url = $this->baseUrl . '/flwv3-pug/getpaidx/api/capture';
         $headers = array('Content-Type' => 'application/json');
 
         // Make `GET` request and handle response with unirest
-        $response = $this->unirestRequest->post($url, $headers, $body);
+        $response = $this->unirestRequest->post($body , $url, $headers);
 
         //check the status is success
         if ($response->body) {
@@ -966,15 +954,15 @@ class Rave {
     /* Refund
      * @return object
      * */
-
-     public function refundPreAuthCard($arrdata)
+    
+     public function refundPreAuthCard($arrdata) 
      {
          $body = $this->body->json($arrdata);
         $url = $this->baseUrl . '/flwv3-pug/getpaidx/api/refundorvoid';
         $headers = array('Content-Type' => 'application/json');
 
         // Make `GET` request and handle response with unirest
-        $response = $this->unirestRequest->post($url, $headers, $body);
+        $response = $this->unirestRequest->post($body , $url, $headers);
 
         //check the status is success
         if ($response->body) {
@@ -989,7 +977,7 @@ class Rave {
      ********************************************************************
      ********************************************************************/
 
-
+    
     /********************************************************************
      ********************************************************************
      * Miscellaneous Start
@@ -1000,29 +988,29 @@ class Rave {
      * @return object
      * */
 
-     public function getFees($arrdata)
+     public function getFees($arrdata) 
      {
          $body = $this->body->json($arrdata);
          $url = $this->baseUrl . '/flwv3-pug/getpaidx/api/fee';
          $headers = array('Content-Type' => 'application/json');
-
+ 
          // Make `GET` request and handle response with unirest
-         $response = $this->unirestRequest->get($url, $headers, $body);
-
+         $response = $this->unirestRequest->get($body, $url, $headers);
+ 
          //check the status is success
          if ($response->body) {
              return $response->body;
          }
-
+ 
          return $response;
      }
 
     /* List of Direct bank Charge
      * @return object
      * */
-     public function listofDirectBankCharge()
+     public function listofDirectBankCharge($country) 
      {
-        $url = $this->baseUrl . '/flwv3-pug/getpaidx/api/flwpbf-banks.js?json=1';
+        $url = $this->baseUrl . '/flwv3-pug/getpaidx/api/flwpbf-banks.js?json=1'. '&country='. $country;
         $headers = array('Content-Type' => 'application/json');
 
         //Make `GET` request and handle response with unirest
@@ -1040,7 +1028,7 @@ class Rave {
         $body = $this->body->json($arrdata);
 
         // Make `POST` request and handle response with unirest
-        $response = $this->unirestRequest->post($url, $headers, $body);
+        $response = $this->unirestRequest->post($body, $url, $headers);
 
         // check the status is success
         if ($response->body && $response->body->status === "success") {
@@ -1059,7 +1047,7 @@ class Rave {
         $body = $this->body->json($arrdata);
 
         // Make `POST` request and handle response with unirest
-        $response = $this->unirestRequest->post($url, $headers, $body);
+        $response = $this->unirestRequest->post($body, $url, $headers);
 
         // check the status is success
         if ($response->body && $response->body->status === "success") {
@@ -1072,7 +1060,7 @@ class Rave {
      * @return object
      * */
 
-     public function listofBankForTransfer($country)
+     public function listofBankForTransfer($country) 
      {
         $url = $this->baseUrl . '/banks?'. '&$country='. $country;
         $headers = array('Content-Type' => 'application/json');
