@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 use Tests\Stubs\Request;
-use KingFlamez\Rave\Rave;
+use ShoboySnr\Rave\Rave;
 use Unirest\Request\Body;
 use Illuminate\Support\Collection;
 use Tests\Stubs\PaymentEventHandler;
@@ -19,7 +19,7 @@ class FeatureTests extends TestCase {
      * Test if parameters are set on setData.
      *
      * @test
-     * @return \KingFlamez\Rave\Rave
+     * @return \ShoboySnr\Rave\Rave
      */
     function getParams () {
 
@@ -27,7 +27,7 @@ class FeatureTests extends TestCase {
         $rave = new Rave($request, new UnirestRequest, new Body);
         $rave = $rave->setData("http://localhost");
 
-        $this->assertInstanceOf("KingFlamez\Rave\Rave", $rave);
+        $this->assertInstanceOf("ShoboySnr\Rave\Rave", $rave);
         return $rave;
     }
 
@@ -111,7 +111,7 @@ class FeatureTests extends TestCase {
         // This section tests if instance of rave is returned when a handler is set.
         $rave = $rave->eventHandler(new PaymentEventHandler)->paymentCanceled($ref);
 
-        $this->assertInstanceOf("KingFlamez\Rave\Rave", $rave);
+        $this->assertInstanceOf("ShoboySnr\Rave\Rave", $rave);
 
         return $ref;
     }
@@ -159,7 +159,7 @@ class FeatureTests extends TestCase {
         $raveResponse = $rave->requeryTransaction($ref);
 
         // Tests that an instance of rave is returned when a handler is set
-        $this->assertInstanceOf("KingFlamez\Rave\Rave", $raveResponse);
+        $this->assertInstanceOf("ShoboySnr\Rave\Rave", $raveResponse);
     }
 
     /**

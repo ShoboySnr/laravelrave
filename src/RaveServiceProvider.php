@@ -1,6 +1,6 @@
 <?php
 
-namespace KingFlamez\Rave;
+namespace ShoboySnr\Rave;
 
 use Unirest\Request;
 use Unirest\Request\Body;
@@ -38,7 +38,7 @@ class RaveServiceProvider extends ServiceProvider
 
         });
 
-        $this->app->alias('laravelrave', "KingFlamez\Rave\Rave");
+        $this->app->alias('laravelrave', "ShoboySnr\Rave\Rave");
     }
 
     /**

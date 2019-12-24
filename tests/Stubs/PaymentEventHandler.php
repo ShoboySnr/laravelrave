@@ -2,7 +2,7 @@
 
 namespace Tests\Stubs;
 
-use KingFlamez\Rave\RaveEventHandlerInterface;
+use ShoboySnr\Rave\RaveEventHandlerInterface;
 
 class PaymentEventHandler implements RaveEventHandlerInterface {
     /**

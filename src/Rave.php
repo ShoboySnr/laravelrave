@@ -1,6 +1,6 @@
 <?php
 
-namespace KingFlamez\Rave;
+namespace ShoboySnr\Rave;
 
 use stdClass;
 use Unirest\Request;

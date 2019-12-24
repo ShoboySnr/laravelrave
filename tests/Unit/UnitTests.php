@@ -7,7 +7,7 @@ use Carbon\Carbon;
 use Tests\TestCase;
 use ReflectionClass;
 use ReflectionProperty;
-use KingFlamez\Rave\Rave;
+use ShoboySnr\Rave\Rave;
 use Illuminate\Http\Request;
 use Tests\Stubs\PaymentEventHandler;
 use Tests\Concerns\ExtractProperties;
@@ -17,10 +17,10 @@ class UnitTests extends TestCase {
     use ExtractProperties;
 
     /**
-     * Tests if app returns \KingFlamez\Rave\Rave if called with ailas.
+     * Tests if app returns \ShoboySnr\Rave\Rave if called with ailas.
      *
      * @test
-     * @return \KingFlamez\Rave\Rave
+     * @return \ShoboySnr\Rave\Rave
      */
     function initiateRaveFromApp () {
 
@@ -37,7 +37,7 @@ class UnitTests extends TestCase {
      * @test
      *
      * @depends initiateRaveFromApp
-     * @param  \KingFlamez\Rave\Rave   $rave
+     * @param  \ShoboySnr\Rave\Rave   $rave
      * @return void
      */
     function initializeWithDefaultValues(Rave $rave) {
